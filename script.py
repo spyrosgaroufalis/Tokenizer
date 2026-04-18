@@ -35,6 +35,7 @@ zlist = list(zenc) # list of bytes
 # Now, we need to create a def for finding pairs and 
 # adding new tokens in the library capish?
 
+# Pairs: {(98, 101), (115, 32), (104, 32),
 def allpairs(tokens):
     pairs = set()
     for i in range(len(tokens)-1):
@@ -44,6 +45,7 @@ def allpairs(tokens):
 pairs = allpairs(zlist)
 # print(f"Pairs: {pairs}")
 
+# Frequent Pairs: {(111, 119): 2, (32, 119): 2,
 def frequent_pairs(tokens):
     counts = {}
     for i in range(len(tokens)-1):
@@ -94,9 +96,9 @@ def merge_pair(tokens, pair, new_token):
 
 new_token = max(zlist) + 1 # new token is the next integer after the max byte value
 zlist = merge_pair(zlist, top_pair, new_token)
-print(f"New Tokens: {zlist}")
-print(f"New length: {len(zlist)}")
-print(f"Original length: {len(zlist) + freqpairs[top_pair]}") # original length is new length + count of merged pairs
+# print(f"New Tokens: {zlist}")
+# print(f"New length: {len(zlist)}")
+# print(f"Original length: {len(zlist) + freqpairs[top_pair]}") # original length is new length + count of merged pairs
 
 # now we need to iterate this process
 # lets say we want to do it 10 times ( 256+10 = 266 tokens)
@@ -112,9 +114,67 @@ for _ in range(num_merges):
         break
     top_pair = max(freqpairs, key=freqpairs.get)
     new_token = max(ids) + 1
-    print(f"Merging pair: {top_pair} with count {freqpairs[top_pair]} into new token {new_token}")
+    # print(f"Merging pair: {top_pair} with count {freqpairs[top_pair]} into new token {new_token}")
     ids = merge_pair(ids, top_pair, new_token)
-print(f"Final Tokens: {ids}")
-print(f"Final length: {len(ids)}")
+# print(f"Final Tokens: {ids}")
+# print(f"Final length: {len(ids)}")
 
 # now we need encoding and decoding functions
+
+
+
+# first way: It looks for the first pair in your vocabulary and replaces every instance of it in the entire text. Then it moves to the second pair, then the third, and so on
+# flawd bec:
+# It assumes the vocab is perfectly ordered by priority. It doesn't check if merging "Pair B" first would have been better than "Pair A" based on the current state of the string.
+# It is generally faster but less robust if the vocabulary isn't strictly pre-sorted by the merge rank.
+
+# def encode(text, vocab):
+#     tokens = list(text.encode("utf-8"))
+#     for pair, token in vocab.items():
+#         tokens = merge_pair(tokens, pair, token)
+#     return tokens
+
+# more robust way: In every iteration of the while loop, it scans the current tokens to find all possible pairs.
+# It then picks the one that has the highest priority (the lowest index/rank in your merges dictionary)
+merges = {} # this will store the mapping of pairs to new tokens
+def encode(text):
+    tokens = list(text.encode("utf-8"))
+    while len(tokens) > 1: # because 0 or 1 str breaks the pair
+        stats = frequent_pairs(tokens) # get the frequency of pairs in the current tokens
+        pair = min(stats, key=lambda p: merges.get(p, float("inf"))) # get the pair with the lowest index in merges (highest priority)
+        # key= lambda p is a function that takes a pair p and returns its index in merges if it exists, otherwise returns infinity (so that pairs not in merges are ignored)
+        if pair not in merges:
+            break
+        idx = merges[pair]
+        tokens = merge_pair(tokens, pair, idx)
+    return tokens
+
+
+encoded_tokens = encode(z)
+print(f"Encoded Tokens: {encoded_tokens}")
+
+# flawd decoding: It assumes that the tokens in the encoded list are in the same order as the merges were applied. 
+# If the merges were applied in a different order, it may not decode correctly.
+
+# def decode(tokens, vocab):
+#     text = b""
+#     for token in tokens:
+#         if token in vocab:
+#             text += vocab[token]
+#         else:
+#             text += bytes([token])
+#     return text.decode("utf-8")
+
+
+ids = list(zenc)
+vocab = {idx: bytes([idx]) for idx in range(256)} # initial vocab with single byte tokens
+for (p0, p1), idx in merges.items():
+    vocab[idx] = vocab[p0] + vocab[p1]
+
+def decode(encoded_tokens):
+    # given list of ints we return string
+    tokens = b"".join(vocab[idx] for idx in encoded_tokens)
+    text = tokens.decode("utf-8")
+    return text
+
+print(f"Decoded Text: {decode(encoded_tokens)}")

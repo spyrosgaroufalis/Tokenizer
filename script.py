@@ -1,6 +1,7 @@
 # strings in python are unicode code points
 # ord() returns unicode code point of a character
 # ord() cant return unicode code point of a string
+# chr() is the opposite of ord() and returns charactes
 # thats why we create a list
 x = ord('h')
 # print(x)
@@ -15,7 +16,7 @@ z = "Now we need a longer string for further testing, if you are interested then
 # utf8 is more backwards compatible with ascii, and is more efficient for english text
 # utf16,32 has more wasteful tokens
 
-print(list(y.encode("utf-8")))
+# print(list(y.encode("utf-8")))
 # print(list(y.encode("utf-16")))
 # print(list(y.encode("utf-32")))
 
@@ -28,7 +29,7 @@ print(list(y.encode("utf-8")))
 
 zenc = z.encode("utf-8") # raw bytes
 zlist = list(zenc) # list of bytes
-print(zlist)
+# print(zlist)
 # print(zenc)
 
 # Now, we need to create a def for finding pairs and 
@@ -71,4 +72,49 @@ def frequent_pairs(tokens):
 #     return freq
 
 freqpairs = frequent_pairs(zlist)
-print(f"Frequent Pairs: {freqpairs}")
+# print(f"Frequent Pairs: {freqpairs}")
+
+
+# now we need to replace the most frequent pair with a new token
+
+top_pair = max(freqpairs, key=freqpairs.get)
+print(f"Top Pair: {top_pair} with count {freqpairs[top_pair]}")
+
+def merge_pair(tokens, pair, new_token):
+    merged_tokens = []
+    i = 0
+    while i < len(tokens):
+        if i < len(tokens) - 1 and (tokens[i], tokens[i+1]) == pair:
+            merged_tokens.append(new_token)
+            i += 2
+        else:
+            merged_tokens.append(tokens[i])
+            i += 1
+    return merged_tokens
+
+new_token = max(zlist) + 1 # new token is the next integer after the max byte value
+zlist = merge_pair(zlist, top_pair, new_token)
+print(f"New Tokens: {zlist}")
+print(f"New length: {len(zlist)}")
+print(f"Original length: {len(zlist) + freqpairs[top_pair]}") # original length is new length + count of merged pairs
+
+# now we need to iterate this process
+# lets say we want to do it 10 times ( 256+10 = 266 tokens)
+
+
+vocab_size = 266
+num_merges = vocab_size - 256 # we start with 256 tokens in utf-8
+ids = zlist
+for _ in range(num_merges):
+    pairs = allpairs(ids)
+    freqpairs = frequent_pairs(ids)
+    if not freqpairs:
+        break
+    top_pair = max(freqpairs, key=freqpairs.get)
+    new_token = max(ids) + 1
+    print(f"Merging pair: {top_pair} with count {freqpairs[top_pair]} into new token {new_token}")
+    ids = merge_pair(ids, top_pair, new_token)
+print(f"Final Tokens: {ids}")
+print(f"Final length: {len(ids)}")
+
+# now we need encoding and decoding functions

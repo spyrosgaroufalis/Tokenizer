@@ -178,3 +178,8 @@ def decode(encoded_tokens):
     return text
 
 print(f"Decoded Text: {decode(encoded_tokens)}")
+
+
+# some tokens should never be paired
+# openai uses this regex r"'\w+|[^\w\s]+|\s+" to split the text into tokens before applying BPE.
+# This regex ensures that certain tokens, such as contractions (e.g., "don't"), punctuation, and whitespace, are treated as separate tokens and are not merged together during the BPE process.
